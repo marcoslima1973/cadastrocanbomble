@@ -527,7 +527,34 @@ function gerarPDF(d){var J=window.jspdf.jsPDF,doc=new J(),pW=doc.internal.pageSi
 
 // ── INIT ──
 document.getElementById('m-datanasc').addEventListener('change',function(){if(this.value)document.getElementById('m-idade').value=Math.floor((new Date()-new Date(this.value))/31557600000);});
-window.addEventListener('load',autoConn);
+
+// ── CREDENCIAIS FIREBASE FIXAS ──
+var FB_CFG = {
+  apiKey: "AIzaSyA9mRVz8OwqxrHoFLtmnT3jPiFUgOyGt-o",
+  authDomain: "cadastro-camdoble.firebaseapp.com",
+  projectId: "cadastro-camdoble",
+  storageBucket: "cadastro-camdoble.firebasestorage.app",
+  messagingSenderId: "541211773366",
+  appId: "1:541211773366:web:e2f162cb40f7bdcb7cd917"
+};
+
+window.addEventListener('load', function(){
+  try {
+    var app = firebase.initializeApp(FB_CFG, 'ile-fixo');
+    db = firebase.firestore(app);
+    db.collection('membros').limit(1).get()
+      .then(function(){
+        setCST('cst','<span class="conn-ok">✓ Conectado!</span>');
+        setCST('cst2','<span class="conn-ok">✓ Conectado!</span>');
+        // Preenche campos ocultos do painel de config
+        ['fb_key','fb_key2'].forEach(function(id){var e=document.getElementById(id);if(e)e.value=FB_CFG.apiKey;});
+        ['fb_pid','fb_pid2'].forEach(function(id){var e=document.getElementById(id);if(e)e.value=FB_CFG.projectId;});
+        ['fb_auth','fb_auth2'].forEach(function(id){var e=document.getElementById(id);if(e)e.value=FB_CFG.authDomain;});
+        ['fb_appid','fb_appid2'].forEach(function(id){var e=document.getElementById(id);if(e)e.value=FB_CFG.appId;});
+      })
+      .catch(function(e){ setCST('cst','<span class="conn-err">Erro: '+e.message+'</span>'); db=null; });
+  } catch(e){ setCST('cst','<span class="conn-err">Erro: '+e.message+'</span>'); db=null; }
+});
 
 // ── ATALHO SECRETO: Ctrl + Shift + F ──
 var _seq='', _alvo='csf';
