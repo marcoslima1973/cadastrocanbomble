@@ -1,0 +1,643 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cadastro — Ilé Àse Ìyá Omí Òsùn Ìjimú</title>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --purple: #534AB7;
+      --purple-light: #EEEDFE;
+      --purple-dark: #3C3489;
+      --text: #1a1a1a;
+      --text-muted: #6b6b6b;
+      --border: #e0e0e0;
+      --bg: #ffffff;
+      --bg-secondary: #f7f7f5;
+      --success: #16a34a;
+      --success-bg: #f0fdf4;
+      --success-border: #86efac;
+      --warning-bg: #fffbeb;
+      --warning-border: #fcd34d;
+      --warning-text: #92400e;
+      --danger: #dc2626;
+      --danger-bg: #fef2f2;
+      --danger-border: #fca5a5;
+      --radius: 8px;
+      --radius-lg: 12px;
+    }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg-secondary); color: var(--text); font-size: 14px; line-height: 1.5; }
+    .app { max-width: 780px; margin: 0 auto; padding: 2rem 1rem; }
+    .header { text-align: center; margin-bottom: 2rem; }
+    .header .logo { width: 56px; height: 56px; background: var(--purple); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 12px; }
+    .header .logo svg { width: 28px; height: 28px; fill: none; stroke: #fff; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+    .header h1 { font-size: 20px; font-weight: 600; color: var(--text); }
+    .header p { font-size: 13px; color: var(--text-muted); margin-top: 4px; }
+
+    /* Config box */
+    .cfg { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1.5rem; margin-bottom: 1.5rem; }
+    .cfg h2 { font-size: 14px; font-weight: 600; margin-bottom: 6px; }
+    .cfg .hint { font-size: 12px; color: var(--text-muted); margin-bottom: 1rem; line-height: 1.6; background: var(--bg-secondary); padding: 10px 12px; border-radius: var(--radius); border-left: 3px solid var(--purple); }
+    .cfg .hint code { background: rgba(83,74,183,0.1); color: var(--purple); padding: 1px 5px; border-radius: 4px; font-family: monospace; font-size: 11px; }
+
+    /* Grid */
+    .g2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .g3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+    @media(max-width: 600px) { .g2, .g3 { grid-template-columns: 1fr; } }
+
+    /* Fields */
+    .f { display: flex; flex-direction: column; gap: 5px; margin-bottom: 13px; }
+    .f label { font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; }
+    .f input, .f select, .f textarea {
+      font-size: 13px; padding: 8px 10px;
+      border: 1px solid var(--border); border-radius: var(--radius);
+      background: var(--bg); color: var(--text); font-family: inherit;
+      transition: border-color 0.15s;
+    }
+    .f input:focus, .f select:focus, .f textarea:focus { outline: none; border-color: var(--purple); box-shadow: 0 0 0 3px rgba(83,74,183,0.1); }
+    .f textarea { resize: vertical; min-height: 72px; }
+
+    /* Radio / checkbox */
+    .rg { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-top: 5px; }
+    .rg label, .cg label { display: flex; align-items: center; gap: 5px; font-size: 13px; cursor: pointer; font-weight: normal; color: var(--text); text-transform: none; letter-spacing: 0; }
+    .rg input[type=radio], .cg input[type=checkbox] { accent-color: var(--purple); width: 15px; height: 15px; }
+    .cg { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 5px; }
+
+    /* Inline label+radio row */
+    .il { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; flex-wrap: wrap; }
+    .il > span { font-size: 13px; color: var(--text); min-width: 200px; }
+
+    /* Conditional */
+    .cd { display: none; margin-top: 6px; padding: 10px 12px; background: var(--bg-secondary); border-radius: var(--radius); border-left: 2px solid var(--border); }
+    .cd.show { display: block; }
+
+    /* Tabs */
+    .tabs-wrap { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; margin-bottom: 1.5rem; }
+    .tabs { display: flex; border-bottom: 1px solid var(--border); }
+    .tab { flex: 1; padding: 12px; font-size: 13px; font-weight: 500; border: none; background: none; cursor: pointer; color: var(--text-muted); border-bottom: 2px solid transparent; margin-bottom: -1px; transition: all 0.15s; }
+    .tab.active { color: var(--purple); border-bottom-color: var(--purple); background: var(--purple-light); }
+    .tab-content { padding: 1.5rem; }
+    .view { display: none; }
+    .view.active { display: block; }
+
+    /* Steps */
+    .steps { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 1.5rem; }
+    .sb { padding: 6px 14px; font-size: 12px; border: 1px solid var(--border); border-radius: 999px; cursor: pointer; background: var(--bg); color: var(--text-muted); font-weight: 500; transition: all 0.15s; }
+    .sb.active { background: var(--purple); border-color: var(--purple); color: #fff; }
+    .sb.done { background: var(--success-bg); border-color: var(--success-border); color: var(--success); }
+
+    /* Section */
+    .sec { display: none; }
+    .sec.active { display: block; }
+    .stitle { font-size: 15px; font-weight: 600; color: var(--text); margin-bottom: 1.25rem; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+
+    /* Nav */
+    .nav { display: flex; justify-content: space-between; margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--border); }
+
+    /* Buttons */
+    .btn { padding: 9px 20px; font-size: 13px; font-weight: 500; border-radius: var(--radius); cursor: pointer; border: 1px solid var(--border); background: var(--bg); color: var(--text); transition: all 0.15s; font-family: inherit; }
+    .btn:hover { background: var(--bg-secondary); }
+    .btn-p { background: var(--purple); border-color: var(--purple); color: #fff; }
+    .btn-p:hover { background: var(--purple-dark); border-color: var(--purple-dark); }
+    .btn-sm { padding: 6px 14px; font-size: 12px; }
+
+    /* Summary cards */
+    .sc { background: var(--bg-secondary); border-radius: var(--radius); padding: 1rem; margin-bottom: 10px; border: 1px solid var(--border); }
+    .sc h3 { font-size: 11px; font-weight: 600; color: var(--text-muted); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.05em; }
+    .sr { display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px solid var(--border); font-size: 12px; }
+    .sr:last-child { border-bottom: none; }
+    .sr span:first-child { color: var(--text-muted); }
+    .sr span:last-child { color: var(--text); font-weight: 500; text-align: right; max-width: 60%; }
+
+    /* Success box */
+    .ok { text-align: center; padding: 2.5rem; background: var(--success-bg); border-radius: var(--radius-lg); border: 1px solid var(--success-border); }
+    .ok h2 { font-size: 18px; color: var(--success); margin-bottom: 6px; }
+    .ok p { font-size: 13px; color: var(--success); }
+    .ok .actions { display: flex; gap: 10px; justify-content: center; margin-top: 1.25rem; flex-wrap: wrap; }
+
+    /* Member list */
+    .sbbar { display: flex; gap: 10px; margin-bottom: 1rem; }
+    .sbbar input { flex: 1; font-size: 13px; padding: 8px 12px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg); color: var(--text); font-family: inherit; }
+    .sbbar input:focus { outline: none; border-color: var(--purple); }
+    .mc { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1rem 1.25rem; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; transition: box-shadow 0.15s; }
+    .mc:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+    .mc h4 { font-size: 14px; font-weight: 600; }
+    .mc p { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+    .mc-actions { display: flex; gap: 8px; align-items: center; }
+    .badge { font-size: 11px; padding: 3px 10px; border-radius: 999px; font-weight: 500; }
+    .b-at { background: var(--success-bg); color: var(--success); border: 1px solid var(--success-border); }
+    .b-ob { background: var(--warning-bg); color: var(--warning-text); border: 1px solid var(--warning-border); }
+    .b-su { background: var(--danger-bg); color: var(--danger); border: 1px solid var(--danger-border); }
+    .empty { text-align: center; padding: 3rem; color: var(--text-muted); font-size: 13px; }
+
+    /* Detail modal */
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 100; align-items: flex-start; justify-content: center; padding: 2rem 1rem; overflow-y: auto; }
+    .modal-overlay.show { display: flex; }
+    .modal { background: var(--bg); border-radius: var(--radius-lg); width: 100%; max-width: 680px; padding: 1.5rem; position: relative; }
+    .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border); }
+    .modal-header h2 { font-size: 16px; font-weight: 600; }
+
+    /* Status / conn */
+    .conn-ok { color: var(--success); font-size: 12px; }
+    .conn-err { color: var(--danger); font-size: 12px; }
+    .sp { display: inline-block; width: 14px; height: 14px; border: 2px solid var(--border); border-top-color: var(--purple); border-radius: 50%; animation: spin 0.7s linear infinite; vertical-align: middle; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Commit box */
+    .commit { background: var(--bg-secondary); border-radius: var(--radius); padding: 1rem; font-size: 12px; color: var(--text-muted); line-height: 1.7; margin-top: 1rem; border: 1px solid var(--border); }
+    .commit strong { color: var(--text); font-weight: 600; }
+  </style>
+</head>
+<body>
+<div class="app">
+
+  <!-- HEADER -->
+  <div class="header">
+    <div class="logo">
+      <svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+    </div>
+    <h1>Ilé Àse Ìyá Omí Òsùn Ìjimú</h1>
+    <p>Sistema de cadastro de membros</p>
+  </div>
+
+  <!-- FIREBASE CONFIG -->
+  <div class="cfg" id="cfgBox">
+    <h2>Configuração do Firebase</h2>
+    <div class="hint">
+      Encontre suas credenciais em: <strong>console.firebase.google.com</strong> → Configurações do projeto → Seus apps → Web → Configuração do SDK.<br>
+      Após conectar, configure as regras do Firestore: <code>allow read, write: if true;</code>
+    </div>
+    <div class="g2" style="margin-bottom:10px">
+      <div class="f"><label>API Key</label><input id="fb_apiKey" placeholder="AIzaSy..."></div>
+      <div class="f"><label>Project ID</label><input id="fb_projectId" placeholder="meu-projeto-12345"></div>
+    </div>
+    <div class="g2" style="margin-bottom:10px">
+      <div class="f"><label>Auth Domain</label><input id="fb_authDomain" placeholder="projeto.firebaseapp.com"></div>
+      <div class="f"><label>App ID</label><input id="fb_appId" placeholder="1:123456:web:abc..."></div>
+    </div>
+    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+      <button class="btn btn-p btn-sm" onclick="conectar()">Conectar Firebase</button>
+      <span id="connStatus"></span>
+    </div>
+  </div>
+
+  <!-- TABS -->
+  <div class="tabs-wrap">
+    <div class="tabs">
+      <button class="tab active" onclick="switchTab('form')">Novo cadastro</button>
+      <button class="tab" onclick="switchTab('list')">Membros cadastrados</button>
+    </div>
+    <div class="tab-content">
+
+      <!-- ===== FORM TAB ===== -->
+      <div class="view active" id="tab-form">
+        <div class="steps">
+          <button class="sb active" onclick="goTo(0)">1. Pessoal</button>
+          <button class="sb" onclick="goTo(1)">2. Religioso</button>
+          <button class="sb" onclick="goTo(2)">3. Participação</button>
+          <button class="sb" onclick="goTo(3)">4. Saúde</button>
+          <button class="sb" onclick="goTo(4)">5. Documentação</button>
+          <button class="sb" onclick="goTo(5)">6. Revisão</button>
+        </div>
+
+        <!-- SEC 0: DADOS PESSOAIS -->
+        <div class="sec active" id="s0">
+          <div class="stitle">Dados pessoais</div>
+          <div class="f"><label>Nome completo</label><input id="nome" placeholder="Nome completo do membro"></div>
+          <div class="g3">
+            <div class="f"><label>Data de nascimento</label><input type="date" id="datanasc"></div>
+            <div class="f"><label>Idade</label><input type="number" id="idade" placeholder="Idade" min="0" max="120"></div>
+            <div class="f"><label>Sexo</label><div class="rg"><label><input type="radio" name="sexo" value="Feminino"> Feminino</label><label><input type="radio" name="sexo" value="Masculino"> Masculino</label></div></div>
+          </div>
+          <div class="g2">
+            <div class="f"><label>CPF</label><input id="cpf" placeholder="000.000.000-00" maxlength="14"></div>
+            <div class="f"><label>RG</label><input id="rg" placeholder="RG"></div>
+          </div>
+          <div class="f"><label>Endereço</label><input id="endereco" placeholder="Rua, número, complemento"></div>
+          <div class="g3">
+            <div class="f"><label>Bairro</label><input id="bairro" placeholder="Bairro"></div>
+            <div class="f"><label>Cidade</label><input id="cidade" placeholder="Cidade"></div>
+            <div class="f"><label>Estado</label><input id="estado" placeholder="UF"></div>
+          </div>
+          <div class="g3">
+            <div class="f"><label>CEP</label><input id="cep" placeholder="00000-000"></div>
+            <div class="f"><label>Telefone</label><input type="tel" id="telefone" placeholder="(00) 0000-0000"></div>
+            <div class="f"><label>Celular</label><input type="tel" id="celular" placeholder="(00) 00000-0000"></div>
+          </div>
+          <div class="g2">
+            <div class="f"><label>E-mail</label><input type="email" id="email" placeholder="email@exemplo.com"></div>
+            <div class="f"><label>Estado civil</label>
+              <select id="estcivil"><option value="">Selecione</option><option>Solteiro(a)</option><option>Casado(a)</option><option>Divorciado(a)</option><option>Viúvo(a)</option></select>
+            </div>
+          </div>
+          <div class="f"><label>Profissão</label><input id="profissao" placeholder="Profissão"></div>
+        </div>
+
+        <!-- SEC 1: DADOS RELIGIOSOS -->
+        <div class="sec" id="s1">
+          <div class="stitle">Dados religiosos</div>
+          <div class="g2">
+            <div class="f"><label>Orukó (nome de santo)</label><input id="oruko" placeholder="Nome de santo"></div>
+            <div class="f"><label>Òrìsà de cabeça</label><input id="orisa" placeholder="Òrìsà"></div>
+          </div>
+          <div class="g2">
+            <div class="f"><label>Juntó</label><input id="junto" placeholder="Juntó"></div>
+            <div class="f"><label>Tempo de santo</label><input id="temposto" placeholder="Ex: 5 anos"></div>
+          </div>
+          <div class="g2">
+            <div class="f"><label>Data de feitura</label><input type="date" id="datafeitura"></div>
+            <div class="f"><label>Data de iniciação no Candomblé</label><input type="date" id="datainic"></div>
+          </div>
+          <div class="g2">
+            <div class="f"><label>Cargo / função na casa</label><input id="cargo" placeholder="Cargo ou função"></div>
+            <div class="f"><label>Obrigação de quantos anos?</label><input id="obrigacao" placeholder="Ex: 3 anos"></div>
+          </div>
+          <div class="f"><label>É</label>
+            <div class="rg">
+              <label><input type="radio" name="ehtipo" value="Ògá"> Ògá</label>
+              <label><input type="radio" name="ehtipo" value="Iyárogbá"> Iyárogbá</label>
+              <label><input type="radio" name="ehtipo" value="Ègbón"> Ègbón</label>
+              <label><input type="radio" name="ehtipo" value="Ìyáwó"> Ìyáwó</label>
+              <label><input type="radio" name="ehtipo" value="Abian"> Abian</label>
+              <label><input type="radio" name="ehtipo" value="Outro"> Outro</label>
+            </div>
+          </div>
+          <div class="f"><label>Bàbálórìsà</label><input id="babalorisa" placeholder="Nome do Bàbálórìsà"></div>
+
+          <div class="il">
+            <span>Já pertenceu a outro Ilé?</span>
+            <div class="rg"><label><input type="radio" name="outroile" value="Sim" onchange="tog('c-outroile',this)"> Sim</label><label><input type="radio" name="outroile" value="Não" onchange="tog('c-outroile',this)"> Não</label></div>
+          </div>
+          <div class="cd" id="c-outroile"><div class="f"><label>Qual Ilé?</label><input id="qualile" placeholder="Nome do Ilé anterior"></div></div>
+
+          <div class="g2">
+            <div class="f"><label>Data de entrada na casa</label><input type="date" id="dataentrada"></div>
+            <div class="f"><label>Quem apresentou à casa</label><input id="apresentou" placeholder="Nome"></div>
+          </div>
+
+          <div class="il">
+            <span>Já recebeu cargo antes?</span>
+            <div class="rg"><label><input type="radio" name="cargoantr" value="Sim" onchange="tog('c-cargo',this)"> Sim</label><label><input type="radio" name="cargoantr" value="Não" onchange="tog('c-cargo',this)"> Não</label></div>
+          </div>
+          <div class="cd" id="c-cargo"><div class="f"><label>Qual cargo?</label><input id="qualcargo" placeholder="Cargo anterior"></div></div>
+
+          <div class="il">
+            <span>Faz uso de fios de conta?</span>
+            <div class="rg"><label><input type="radio" name="fios" value="Sim"> Sim</label><label><input type="radio" name="fios" value="Não"> Não</label></div>
+          </div>
+
+          <div class="il">
+            <span>Possui Ileke / contra-egun / outros?</span>
+            <div class="rg"><label><input type="radio" name="ileke" value="Sim" onchange="tog('c-ileke',this)"> Sim</label><label><input type="radio" name="ileke" value="Não" onchange="tog('c-ileke',this)"> Não</label></div>
+          </div>
+          <div class="cd" id="c-ileke"><div class="f"><label>Quais?</label><input id="qualileke" placeholder="Descreva"></div></div>
+
+          <div class="il">
+            <span>Cumpre preceitos?</span>
+            <div class="rg"><label><input type="radio" name="preceitos" value="Sim"> Sim</label><label><input type="radio" name="preceitos" value="Não"> Não</label></div>
+          </div>
+
+          <div class="il">
+            <span>Possui impedimento religioso?</span>
+            <div class="rg"><label><input type="radio" name="impedimento" value="Sim" onchange="tog('c-imped',this)"> Sim</label><label><input type="radio" name="impedimento" value="Não" onchange="tog('c-imped',this)"> Não</label></div>
+          </div>
+          <div class="cd" id="c-imped"><div class="f"><label>Qual impedimento?</label><input id="qualimped" placeholder="Descreva o impedimento"></div></div>
+        </div>
+
+        <!-- SEC 2: PARTICIPAÇÃO -->
+        <div class="sec" id="s2">
+          <div class="stitle">Participação na casa</div>
+          <div class="il">
+            <span>Participa das atividades do Ilé?</span>
+            <div class="rg"><label><input type="radio" name="participa" value="Sim"> Sim</label><label><input type="radio" name="participa" value="Não"> Não</label></div>
+          </div>
+          <div class="il">
+            <span>Disponibilidade para colaborar?</span>
+            <div class="rg"><label><input type="radio" name="disponivel" value="Sim"> Sim</label><label><input type="radio" name="disponivel" value="Não"> Não</label></div>
+          </div>
+          <div class="f" style="margin-top:0.5rem">
+            <label>Áreas de colaboração</label>
+            <div class="cg">
+              <label><input type="checkbox" value="Projeto cultural sire Òrìsà"> Projeto cultural sire Òrìsà</label>
+              <label><input type="checkbox" value="Limpeza"> Limpeza</label>
+              <label><input type="checkbox" value="Organização"> Organização</label>
+              <label><input type="checkbox" value="Cozinha"> Cozinha</label>
+            </div>
+          </div>
+          <div class="f"><label>Outra área</label><input id="outraarea" placeholder="Especifique outra área"></div>
+        </div>
+
+        <!-- SEC 3: SAÚDE -->
+        <div class="sec" id="s3">
+          <div class="stitle">Saúde e bem-estar</div>
+          <div class="il">
+            <span>Possui restrição de saúde?</span>
+            <div class="rg"><label><input type="radio" name="restricao" value="Sim" onchange="tog('c-rest',this)"> Sim</label><label><input type="radio" name="restricao" value="Não" onchange="tog('c-rest',this)"> Não</label></div>
+          </div>
+          <div class="cd" id="c-rest"><div class="f"><label>Qual restrição?</label><input id="qualrest" placeholder="Descreva a restrição"></div></div>
+
+          <div class="il">
+            <span>Uso de medicamentos contínuos?</span>
+            <div class="rg"><label><input type="radio" name="medicamento" value="Sim" onchange="tog('c-med',this)"> Sim</label><label><input type="radio" name="medicamento" value="Não" onchange="tog('c-med',this)"> Não</label></div>
+          </div>
+          <div class="cd" id="c-med"><div class="f"><label>Qual(is) medicamento(s)?</label><input id="qualmed" placeholder="Nome dos medicamentos"></div></div>
+
+          <div class="il">
+            <span>Possui alergia?</span>
+            <div class="rg"><label><input type="radio" name="alergia" value="Sim" onchange="tog('c-alerg',this)"> Sim</label><label><input type="radio" name="alergia" value="Não" onchange="tog('c-alerg',this)"> Não</label></div>
+          </div>
+          <div class="cd" id="c-alerg"><div class="f"><label>Qual alergia?</label><input id="qualalerg" placeholder="Descreva a alergia"></div></div>
+
+          <div class="g2">
+            <div class="f"><label>Tipo sanguíneo</label>
+              <select id="tiposang"><option value="">Selecione</option><option>A+</option><option>A-</option><option>B+</option><option>B-</option><option>AB+</option><option>AB-</option><option>O+</option><option>O-</option></select>
+            </div>
+          </div>
+          <div class="g2">
+            <div class="f"><label>Contato de emergência</label><input id="contatemerg" placeholder="Nome do contato"></div>
+            <div class="f"><label>Telefone de emergência</label><input type="tel" id="teltemerg" placeholder="(00) 00000-0000"></div>
+          </div>
+        </div>
+
+        <!-- SEC 4: DOCUMENTAÇÃO -->
+        <div class="sec" id="s4">
+          <div class="stitle">Documentação</div>
+          <div class="il"><span>Entregou foto 3x4?</span><div class="rg"><label><input type="radio" name="foto" value="Sim"> Sim</label><label><input type="radio" name="foto" value="Não"> Não</label></div></div>
+          <div class="il"><span>Entregou documentos?</span><div class="rg"><label><input type="radio" name="docs" value="Sim"> Sim</label><label><input type="radio" name="docs" value="Não"> Não</label></div></div>
+          <div class="il"><span>Assinou regimento interno?</span><div class="rg"><label><input type="radio" name="regimento" value="Sim"> Sim</label><label><input type="radio" name="regimento" value="Não"> Não</label></div></div>
+          <div class="g2" style="margin-top:0.5rem">
+            <div class="f"><label>Situação</label>
+              <select id="situacao"><option value="Ativo">Ativo</option><option value="Observação">Observação</option><option value="Suspenso">Suspenso</option><option value="Desligado">Desligado</option></select>
+            </div>
+            <div class="f"><label>Responsável pelo cadastro</label><input id="responsavel" placeholder="Nome do responsável"></div>
+          </div>
+          <div class="f"><label>Observações</label><textarea id="obs" placeholder="Observações internas..."></textarea></div>
+        </div>
+
+        <!-- SEC 5: REVISÃO -->
+        <div class="sec" id="s5">
+          <div class="stitle">Revisão e confirmação</div>
+          <div id="resumo"></div>
+          <div class="commit">
+            <strong>Declaração de compromisso</strong><br>
+            Ao confirmar o cadastro, o membro declara que todas as informações são verdadeiras e se compromete a respeitar os fundamentos, normas e tradições do Ilé Àse Ìyá Omí Òsùn Ìjimú, zelando pelo sagrado e pela hierarquia da casa.
+          </div>
+        </div>
+
+        <!-- SEC 6: SUCESSO -->
+        <div class="sec" id="s6">
+          <div class="ok">
+            <svg width="48" height="48" viewBox="0 0 48 48" style="margin-bottom:12px"><circle cx="24" cy="24" r="24" fill="#16a34a" opacity="0.15"/><circle cx="24" cy="24" r="20" fill="#16a34a"/><polyline points="14,24 21,31 34,17" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <h2>Cadastro salvo com sucesso!</h2>
+            <p>Os dados foram armazenados no Firebase.</p>
+            <div class="actions">
+              <button class="btn btn-p" onclick="gerarPDF(lastData)">Imprimir ficha PDF</button>
+              <button class="btn" onclick="reiniciar()">Novo cadastro</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="nav" id="navBtns">
+          <button class="btn" id="btnBack" onclick="navBack()" style="visibility:hidden">← Voltar</button>
+          <button class="btn btn-p" id="btnNext" onclick="navNext()">Próximo →</button>
+        </div>
+      </div>
+
+      <!-- ===== LIST TAB ===== -->
+      <div class="view" id="tab-list">
+        <div class="sbbar">
+          <input id="searchInput" placeholder="Buscar por nome, Òrìsà ou orukó..." oninput="filtrarMembros()">
+          <button class="btn btn-sm" onclick="carregarMembros()">Atualizar</button>
+        </div>
+        <div id="memberList"><div class="empty">Conecte o Firebase e clique em Atualizar para ver os membros.</div></div>
+      </div>
+
+    </div><!-- tab-content -->
+  </div><!-- tabs-wrap -->
+
+</div><!-- app -->
+
+<!-- MODAL DETALHE -->
+<div class="modal-overlay" id="modalOv" onclick="fecharModal(event)">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="modalNome">Ficha do Membro</h2>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-p btn-sm" onclick="gerarPDF(detailData)">Imprimir PDF</button>
+        <button class="btn btn-sm" onclick="document.getElementById('modalOv').classList.remove('show')">Fechar ✕</button>
+      </div>
+    </div>
+    <div id="modalContent"></div>
+  </div>
+</div>
+
+<script>
+  var db = null, allMembers = [], lastData = {}, detailData = {}, cur = 0;
+
+  function setStatus(h) { document.getElementById('connStatus').innerHTML = h; }
+
+  function conectar() {
+    var apiKey    = document.getElementById('fb_apiKey').value.trim();
+    var projectId = document.getElementById('fb_projectId').value.trim();
+    var authDomain= document.getElementById('fb_authDomain').value.trim() || projectId + '.firebaseapp.com';
+    var appId     = document.getElementById('fb_appId').value.trim() || '1:0:web:0';
+    if (!apiKey || !projectId) { setStatus('<span class="conn-err">Preencha API Key e Project ID.</span>'); return; }
+    setStatus('<span class="sp"></span> <span style="font-size:12px;color:#6b6b6b;margin-left:4px">Conectando...</span>');
+    try {
+      var app = firebase.initializeApp({ apiKey: apiKey, authDomain: authDomain, projectId: projectId, appId: appId }, 'candomble-' + Date.now());
+      db = firebase.firestore(app);
+      db.collection('membros').limit(1).get()
+        .then(function () {
+          setStatus('<span class="conn-ok">✓ Conectado!</span>');
+          document.getElementById('cfgBox').style.borderColor = '#86efac';
+          carregarMembros();
+        })
+        .catch(function (e) { setStatus('<span class="conn-err">Erro Firestore: ' + e.message + '</span>'); db = null; });
+    } catch (e) { setStatus('<span class="conn-err">Erro: ' + e.message + '</span>'); db = null; }
+  }
+
+  function switchTab(t) {
+    document.querySelectorAll('.tab').forEach(function (b, i) { b.classList.toggle('active', (i === 0 && t === 'form') || (i === 1 && t === 'list')); });
+    document.getElementById('tab-form').classList.toggle('active', t === 'form');
+    document.getElementById('tab-list').classList.toggle('active', t === 'list');
+    if (t === 'list') carregarMembros();
+  }
+
+  function goTo(i) {
+    if (i === 5) buildResumo();
+    document.querySelectorAll('.sec').forEach(function (s, idx) { s.classList.toggle('active', idx === i); });
+    document.querySelectorAll('.sb').forEach(function (b, idx) { b.classList.remove('active', 'done'); if (idx === i) b.classList.add('active'); else if (idx < i) b.classList.add('done'); });
+    cur = i;
+    document.getElementById('btnBack').style.visibility = i > 0 ? 'visible' : 'hidden';
+    document.getElementById('btnNext').textContent = i === 4 ? 'Revisar →' : i === 5 ? 'Salvar no Firebase' : 'Próximo →';
+    document.getElementById('navBtns').style.display = i === 6 ? 'none' : 'flex';
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function navNext() { if (cur < 5) goTo(cur + 1); else salvar(); }
+  function navBack() { if (cur > 0) goTo(cur - 1); }
+  function tog(id, el) { document.getElementById(id).classList.toggle('show', el.value === 'Sim'); }
+  function gr(n) { var e = document.querySelector('input[name="' + n + '"]:checked'); return e ? e.value : ''; }
+  function gc() { var c = Array.from(document.querySelectorAll('.cg input:checked')).map(function (x) { return x.value; }); var o = document.getElementById('outraarea').value; if (o) c.push(o); return c.join(', '); }
+  function fv(id) { var e = document.getElementById(id); return (e && e.value) ? e.value : ''; }
+
+  function coletarDados() {
+    return {
+      nome: fv('nome'), datanasc: fv('datanasc'), idade: fv('idade'), sexo: gr('sexo'),
+      cpf: fv('cpf'), rg: fv('rg'), endereco: fv('endereco'), bairro: fv('bairro'),
+      cidade: fv('cidade'), estado: fv('estado'), cep: fv('cep'), telefone: fv('telefone'),
+      celular: fv('celular'), email: fv('email'), estcivil: fv('estcivil'), profissao: fv('profissao'),
+      oruko: fv('oruko'), orisa: fv('orisa'), junto: fv('junto'), temposto: fv('temposto'),
+      datafeitura: fv('datafeitura'), datainic: fv('datainic'), cargo: fv('cargo'),
+      obrigacao: fv('obrigacao'), ehtipo: gr('ehtipo'), babalorisa: fv('babalorisa'),
+      outroile: gr('outroile'), qualile: fv('qualile'), dataentrada: fv('dataentrada'),
+      apresentou: fv('apresentou'), cargoantr: gr('cargoantr'), qualcargo: fv('qualcargo'),
+      fios: gr('fios'), ileke: gr('ileke'), qualileke: fv('qualileke'),
+      preceitos: gr('preceitos'), impedimento: gr('impedimento'), qualimped: fv('qualimped'),
+      participa: gr('participa'), disponivel: gr('disponivel'), areas: gc(),
+      restricao: gr('restricao'), qualrest: fv('qualrest'), medicamento: gr('medicamento'),
+      qualmed: fv('qualmed'), alergia: gr('alergia'), qualalerg: fv('qualalerg'),
+      tiposang: fv('tiposang'), contatemerg: fv('contatemerg'), teltemerg: fv('teltemerg'),
+      foto: gr('foto'), docs: gr('docs'), regimento: gr('regimento'),
+      situacao: fv('situacao') || 'Ativo', responsavel: fv('responsavel'), obs: fv('obs'),
+      dataCadastro: new Date().toLocaleDateString('pt-BR')
+    };
+  }
+
+  function salvar() {
+    var data = coletarDados(); lastData = data;
+    if (!db) { alert('Conecte o Firebase antes de salvar.'); return; }
+    var btn = document.getElementById('btnNext');
+    btn.textContent = 'Salvando...'; btn.disabled = true;
+    db.collection('membros').add(Object.assign({}, data, { criadoEm: firebase.firestore.FieldValue.serverTimestamp() }))
+      .then(function () { goTo(6); carregarMembros(); })
+      .catch(function (e) { alert('Erro ao salvar: ' + e.message + '\n\nVerifique as regras do Firestore.'); btn.textContent = 'Salvar no Firebase'; btn.disabled = false; });
+  }
+
+  function buildResumo() {
+    var d = coletarDados();
+    var secs = [
+      { t: 'Dados pessoais', r: [['Nome', d.nome], ['Nascimento', d.datanasc], ['Sexo', d.sexo], ['CPF', d.cpf], ['Cidade / Estado', d.cidade + (d.estado ? ' - ' + d.estado : '')], ['E-mail', d.email], ['Est. civil', d.estcivil], ['Profissão', d.profissao]] },
+      { t: 'Dados religiosos', r: [['Orukó', d.oruko], ['Òrìsà de cabeça', d.orisa], ['Juntó', d.junto], ['É', d.ehtipo], ['Bàbálórìsà', d.babalorisa], ['Data de entrada', d.dataentrada], ['Quem apresentou', d.apresentou]] },
+      { t: 'Participação', r: [['Participa', d.participa], ['Disponível', d.disponivel], ['Áreas', d.areas]] },
+      { t: 'Saúde', r: [['Restrição', d.restricao || 'Não'], ['Medicamentos', d.medicamento || 'Não'], ['Alergia', d.alergia || 'Não'], ['Tipo sanguíneo', d.tiposang], ['Emergência', d.contatemerg]] },
+      { t: 'Documentação', r: [['Foto 3x4', d.foto], ['Documentos', d.docs], ['Regimento', d.regimento], ['Situação', d.situacao]] }
+    ];
+    document.getElementById('resumo').innerHTML = secs.map(function (s) {
+      return '<div class="sc"><h3>' + s.t + '</h3>' + s.r.filter(function (r) { return r[1]; }).map(function (r) { return '<div class="sr"><span>' + r[0] + '</span><span>' + r[1] + '</span></div>'; }).join('') + '</div>';
+    }).join('');
+  }
+
+  function carregarMembros() {
+    if (!db) { document.getElementById('memberList').innerHTML = '<div class="empty">Firebase não conectado.</div>'; return; }
+    document.getElementById('memberList').innerHTML = '<div class="empty"><span class="sp"></span> Carregando...</div>';
+    db.collection('membros').get()
+      .then(function (snap) {
+        allMembers = [];
+        snap.forEach(function (doc) { allMembers.push(Object.assign({ id: doc.id }, doc.data())); });
+        allMembers.sort(function (a, b) { return (a.nome || '').localeCompare(b.nome || ''); });
+        renderMembros(allMembers);
+      })
+      .catch(function (e) { document.getElementById('memberList').innerHTML = '<div class="empty">Erro: ' + e.message + '</div>'; });
+  }
+
+  function bc(s) { return s === 'Ativo' ? 'b-at' : s === 'Observação' ? 'b-ob' : 'b-su'; }
+
+  function renderMembros(list) {
+    if (!list.length) { document.getElementById('memberList').innerHTML = '<div class="empty">Nenhum membro cadastrado ainda.</div>'; return; }
+    document.getElementById('memberList').innerHTML = list.map(function (m) {
+      return '<div class="mc"><div><h4>' + (m.nome || 'Sem nome') + '</h4><p>' + (m.orisa ? 'Òrìsà: ' + m.orisa : '') + (m.orisa && m.ehtipo ? ' · ' : '') + (m.ehtipo || '') + '</p><p style="margin-top:3px;font-size:11px">' + (m.dataCadastro ? 'Cadastrado em ' + m.dataCadastro : '') + '</p></div><div class="mc-actions"><span class="badge ' + bc(m.situacao) + '">' + (m.situacao || '—') + '</span><button class="btn btn-sm" onclick="abrirModal(\'' + m.id + '\')">Ver ficha</button></div></div>';
+    }).join('');
+  }
+
+  function filtrarMembros() {
+    var q = document.getElementById('searchInput').value.toLowerCase();
+    renderMembros(allMembers.filter(function (m) { return (m.nome || '').toLowerCase().includes(q) || (m.orisa || '').toLowerCase().includes(q) || (m.oruko || '').toLowerCase().includes(q); }));
+  }
+
+  function abrirModal(id) {
+    var m = allMembers.find(function (x) { return x.id === id; });
+    if (!m) return;
+    detailData = m;
+    document.getElementById('modalNome').textContent = m.nome || 'Membro';
+    var secs = [
+      { t: 'Dados pessoais', r: [['Nome', m.nome], ['Data de nasc.', m.datanasc], ['Sexo', m.sexo], ['CPF', m.cpf], ['RG', m.rg], ['Endereço', m.endereco], ['Bairro', m.bairro], ['Cidade', m.cidade], ['Estado', m.estado], ['CEP', m.cep], ['Telefone', m.telefone], ['Celular', m.celular], ['E-mail', m.email], ['Est. civil', m.estcivil], ['Profissão', m.profissao]] },
+      { t: 'Dados religiosos', r: [['Orukó', m.oruko], ['Òrìsà de cabeça', m.orisa], ['Juntó', m.junto], ['Tempo de santo', m.temposto], ['Data de feitura', m.datafeitura], ['Iniciação', m.datainic], ['Cargo / função', m.cargo], ['Obrigação', m.obrigacao], ['É', m.ehtipo], ['Bàbálórìsà', m.babalorisa], ['Pertenceu a outro Ilé', m.outroile], ['Qual Ilé', m.qualile], ['Entrada na casa', m.dataentrada], ['Quem apresentou', m.apresentou], ['Cargo anterior', m.cargoantr], ['Qual cargo', m.qualcargo], ['Fios de conta', m.fios], ['Ileke/contra-egun', m.ileke], ['Cumpre preceitos', m.preceitos], ['Impedimento religioso', m.impedimento], ['Qual impedimento', m.qualimped]] },
+      { t: 'Participação', r: [['Participa das atividades', m.participa], ['Disponível p/ colaborar', m.disponivel], ['Áreas', m.areas]] },
+      { t: 'Saúde e bem-estar', r: [['Restrição de saúde', m.qualrest || m.restricao], ['Medicamentos', m.qualmed || m.medicamento], ['Alergia', m.qualalerg || m.alergia], ['Tipo sanguíneo', m.tiposang], ['Contato emergência', m.contatemerg], ['Tel. emergência', m.teltemerg]] },
+      { t: 'Documentação', r: [['Foto 3x4', m.foto], ['Documentos', m.docs], ['Regimento interno', m.regimento], ['Situação', m.situacao], ['Responsável', m.responsavel], ['Obs.', m.obs], ['Data do cadastro', m.dataCadastro]] }
+    ];
+    document.getElementById('modalContent').innerHTML = secs.map(function (s) {
+      var rows = s.r.filter(function (r) { return r[1]; }).map(function (r) { return '<div class="sr"><span>' + r[0] + '</span><span>' + r[1] + '</span></div>'; }).join('');
+      return rows ? '<div class="sc"><h3>' + s.t + '</h3>' + rows + '</div>' : '';
+    }).join('');
+    document.getElementById('modalOv').classList.add('show');
+  }
+
+  function fecharModal(e) { if (e.target === document.getElementById('modalOv')) document.getElementById('modalOv').classList.remove('show'); }
+
+  function gerarPDF(d) {
+    var J = window.jspdf.jsPDF, doc = new J(), pW = doc.internal.pageSize.getWidth(), y = 36;
+    doc.setFillColor(83, 74, 183); doc.rect(0, 0, pW, 30, 'F');
+    doc.setTextColor(255, 255, 255); doc.setFontSize(14); doc.setFont('helvetica', 'bold');
+    doc.text('Ilé Àse Iyá Omi Osun Ijimu', pW / 2, 13, { align: 'center' });
+    doc.setFontSize(9); doc.setFont('helvetica', 'normal');
+    doc.text('Ficha Cadastral de Membro', pW / 2, 22, { align: 'center' });
+    var secs = [
+      { t: 'Dados Pessoais', r: [['Nome Completo', d.nome], ['Data de Nasc.', d.datanasc], ['Idade', d.idade], ['Sexo', d.sexo], ['CPF', d.cpf], ['RG', d.rg], ['Endereço', d.endereco], ['Bairro', d.bairro], ['Cidade', d.cidade], ['Estado', d.estado], ['CEP', d.cep], ['Telefone', d.telefone], ['Celular', d.celular], ['E-mail', d.email], ['Est. Civil', d.estcivil], ['Profissão', d.profissao]] },
+      { t: 'Dados Religiosos', r: [['Orukó', d.oruko], ['Orisá de Cabeça', d.orisa], ['Juntó', d.junto], ['Tempo de Santo', d.temposto], ['Data de Feitura', d.datafeitura], ['Iniciação', d.datainic], ['Cargo / Função', d.cargo], ['Obrigação (anos)', d.obrigacao], ['É', d.ehtipo], ['Babalorisá', d.babalorisa], ['Pertenceu a outro Ilé', d.outroile], ['Qual Ilé', d.qualile], ['Data de Entrada', d.dataentrada], ['Quem apresentou', d.apresentou], ['Cargo anterior', d.cargoantr], ['Qual cargo', d.qualcargo], ['Fios de conta', d.fios], ['Ileke / contra-egun', d.ileke], ['Cumpre preceitos', d.preceitos], ['Impedimento religioso', d.impedimento], ['Qual impedimento', d.qualimped]] },
+      { t: 'Participação na Casa', r: [['Participa das atividades', d.participa], ['Disponível p/ colaborar', d.disponivel], ['Áreas de colaboração', d.areas]] },
+      { t: 'Saúde e Bem-Estar', r: [['Restrição de saúde', d.restricao], ['Qual restrição', d.qualrest], ['Medicamentos contínuos', d.medicamento], ['Quais medicamentos', d.qualmed], ['Alergia', d.alergia], ['Qual alergia', d.qualalerg], ['Tipo Sanguíneo', d.tiposang], ['Contato de emergência', d.contatemerg], ['Tel. de emergência', d.teltemerg]] },
+      { t: 'Documentação e Situação', r: [['Foto 3x4', d.foto], ['Documentos', d.docs], ['Regimento interno', d.regimento], ['Situação', d.situacao], ['Responsável pelo cadastro', d.responsavel], ['Observações', d.obs], ['Data do cadastro', d.dataCadastro]] }
+    ];
+    secs.forEach(function (sec) {
+      if (y > 260) { doc.addPage(); y = 18; }
+      doc.setFillColor(237, 235, 254); doc.rect(10, y - 5, pW - 20, 9, 'F');
+      doc.setTextColor(83, 74, 183); doc.setFontSize(9); doc.setFont('helvetica', 'bold');
+      doc.text(sec.t, 14, y + 1); y += 10;
+      sec.r.filter(function (r) { return r[1]; }).forEach(function (r) {
+        if (y > 275) { doc.addPage(); y = 18; }
+        doc.setTextColor(40, 40, 40); doc.setFontSize(8); doc.setFont('helvetica', 'bold');
+        doc.text(r[0] + ':', 14, y);
+        doc.setFont('helvetica', 'normal');
+        var lines = doc.splitTextToSize(String(r[1]), 118);
+        doc.text(lines, 74, y); y += 5 * lines.length + 1;
+      });
+      y += 5;
+    });
+    if (y > 250) { doc.addPage(); y = 18; }
+    doc.setDrawColor(83, 74, 183);
+    doc.line(14, y + 8, 88, y + 8); doc.line(108, y + 8, 196, y + 8);
+    doc.setFontSize(7); doc.setTextColor(100, 100, 100);
+    doc.text('Assinatura do Membro', 14, y + 13);
+    doc.text('Data: ____/____/________', 108, y + 13);
+    y += 22;
+    doc.setFontSize(7); doc.setTextColor(160, 160, 160);
+    doc.text('Ilé Àse Iyá Omi Osun Ijimu — Documento interno e confidencial', pW / 2, y, { align: 'center' });
+    doc.save('ficha_' + (d.nome || 'membro').replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_]/g, '') + '.pdf');
+  }
+
+  function reiniciar() {
+    document.querySelectorAll('input[type=text],input[type=date],input[type=email],input[type=tel],input[type=number],textarea,select').forEach(function (el) { el.value = ''; });
+    document.querySelectorAll('input[type=radio],input[type=checkbox]').forEach(function (el) { el.checked = false; });
+    document.querySelectorAll('.cd').forEach(function (el) { el.classList.remove('show'); });
+    lastData = {}; goTo(0);
+  }
+
+  document.getElementById('datanasc').addEventListener('change', function () {
+    if (this.value) document.getElementById('idade').value = Math.floor((new Date() - new Date(this.value)) / 31557600000);
+  });
+  document.getElementById('cpf').addEventListener('input', function () {
+    var v = this.value.replace(/\D/g, '').slice(0, 11);
+    if (v.length > 9) v = v.replace(/(\d{3})(\d{3})(\d{3})(\d{1,2})/, '$1.$2.$3-$4');
+    else if (v.length > 6) v = v.replace(/(\d{3})(\d{3})(\d{0,3})/, '$1.$2.$3');
+    else if (v.length > 3) v = v.replace(/(\d{3})(\d{0,3})/, '$1.$2');
+    this.value = v;
+  });
+</script>
+</body>
+</html>
